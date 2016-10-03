@@ -51,6 +51,11 @@ private:
     for (const auto& pair : configuration_core_->get_current_profile_fn_function_keys()) {
       grabber_client_.add_fn_function_key(pair.first, pair.second);
     }
+
+    grabber_client_.clear_standalone_modifiers();
+    for (const auto& pair : configuration_core_->get_current_profile_standalone_modifiers()) {
+      grabber_client_.add_standalone_modifier(pair.first, pair.second);
+    }
   }
 
   spdlog::logger& logger_;

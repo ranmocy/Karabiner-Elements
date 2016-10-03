@@ -25,6 +25,8 @@ enum class operation_type : uint8_t {
   add_simple_modification,
   clear_fn_function_keys,
   add_fn_function_key,
+  clear_standalone_modifiers,
+  add_standalone_modifier,
   // event_dispatcher -> grabber
   set_caps_lock_led_state,
   // grabber -> event_dispatcher
@@ -227,6 +229,31 @@ public:
       return modifier_flag::hyper;
     default:
       return modifier_flag::zero;
+    }
+  }
+
+  static key_code get_key_code(modifier_flag flag) {
+    switch (flag) {
+      case modifier_flag::left_control:
+        return key_code(kHIDUsage_KeyboardLeftControl);
+      case modifier_flag::left_shift:
+        return key_code(kHIDUsage_KeyboardLeftShift);
+      case modifier_flag::left_option:
+        return key_code(kHIDUsage_KeyboardLeftAlt);
+      case modifier_flag::left_command:
+        return key_code(kHIDUsage_KeyboardLeftGUI);
+      case modifier_flag::right_control:
+        return key_code(kHIDUsage_KeyboardRightControl);
+      case modifier_flag::right_shift:
+        return key_code(kHIDUsage_KeyboardRightShift);
+      case modifier_flag::right_option:
+        return key_code(kHIDUsage_KeyboardRightAlt);
+      case modifier_flag::right_command:
+        return key_code(kHIDUsage_KeyboardRightGUI);
+      case modifier_flag::fn:
+        return key_code::vk_fn_modifier;
+      default:
+        return key_code(0);
     }
   }
 
@@ -727,6 +754,20 @@ struct operation_type_clear_fn_function_keys_struct {
 
 struct operation_type_add_fn_function_key_struct {
   operation_type_add_fn_function_key_struct(void) : operation_type(operation_type::add_fn_function_key) {}
+
+  const operation_type operation_type;
+  key_code from_key_code;
+  key_code to_key_code;
+};
+
+struct operation_type_clear_standalone_modifiers_struct {
+  operation_type_clear_standalone_modifiers_struct(void) : operation_type(operation_type::clear_standalone_modifiers) {}
+
+  const operation_type operation_type;
+};
+
+struct operation_type_add_standalone_modifier_struct {
+  operation_type_add_standalone_modifier_struct(void) : operation_type(operation_type::add_standalone_modifier) {}
 
   const operation_type operation_type;
   key_code from_key_code;

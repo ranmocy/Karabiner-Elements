@@ -42,7 +42,22 @@ public:
   }
 
   void grab_mouse_events(void) {
-    event_tap_manager_ = std::make_unique<event_tap_manager>(modifier_flag_manager_);
+    event_tap_manager_ = std::make_unique<event_tap_manager>(modifier_flag_manager_, std::bind(&event_manipulator::pre_tap, this, std::placeholders::_1));
+  }
+
+  void pre_tap(CGEventType type) {
+    if (type == kCGEventLeftMouseDown || type == kCGEventLeftMouseUp || type == kCGEventRightMouseDown || type == kCGEventRightMouseUp) {
+      auto standalone_modifier = modifier_flag_manager_.get_standalone_modifier();
+      if (standalone_modifier != krbn::modifier_flag::zero) {
+        post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), true);
+        modifier_flag_manager_.reset_standalone();
+      }
+      if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) {
+        mouseDown = true;
+      } else {
+        mouseDown = false;
+      }
+    }
   }
 
   void ungrab_mouse_events(void) {
@@ -115,6 +130,14 @@ public:
 
   void add_fn_function_key(krbn::key_code from_key_code, krbn::key_code to_key_code) {
     fn_function_keys_.add(from_key_code, to_key_code);
+  }
+
+  void clear_standalone_modifiers(void) {
+    standalone_modifiers_.clear();
+  }
+
+  void add_standalone_modifier(krbn::key_code from_key_code, krbn::key_code to_key_code) {
+    standalone_modifiers_.add(from_key_code, to_key_code);
   }
 
   void create_event_dispatcher_client(void) {
@@ -223,6 +246,11 @@ public:
         toggle_caps_lock_state();
         key_repeat_manager_.stop();
       }
+      return;
+    }
+
+    if (process_standalone_modifier_key(to_key_code, pressed)) {
+      key_repeat_manager_.stop();
       return;
     }
 
@@ -477,6 +505,51 @@ private:
     std::mutex mutex_;
   };
 
+  bool process_standalone_modifier_key(krbn::key_code key_code, bool pressed) {
+    auto modifier_flag = krbn::types::get_modifier_flag(key_code);
+    auto standalone_modifier = modifier_flag_manager_.get_standalone_modifier();
+    if (pressed) {
+      if (modifier_flag != krbn::modifier_flag::zero) {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), true);
+        }
+        if (mouseDown || !standalone_modifiers_.get(key_code)) {
+          return false;
+        } else {
+          modifier_flag_manager_.set_standalone(modifier_flag);
+        }
+        return true;
+      } else {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), true);
+        }
+        return false;
+      }
+    } else {
+      if ((modifier_flag != krbn::modifier_flag::zero) && (standalone_modifier != krbn::modifier_flag::zero) && (modifier_flag == standalone_modifier)) {
+        if (!post_standalone_modifier_key(key_code)) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), true);
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), false);
+        }
+        return true;
+      } else {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), true);
+        }
+        return false;
+      }
+    }
+  }
+
+  bool post_standalone_modifier_key(krbn::key_code key_code) {
+    if (auto to_key_code = standalone_modifiers_.get(key_code)) {
+      post_key(*to_key_code, *to_key_code, true, false);
+      post_key(*to_key_code, *to_key_code, false, false);
+      return true;
+    }
+    return false;
+  }
+
   bool post_modifier_flag_event(krbn::key_code key_code, bool pressed) {
     auto operation = pressed ? manipulator::modifier_flag_manager::operation::increase : manipulator::modifier_flag_manager::operation::decrease;
 
@@ -490,6 +563,7 @@ private:
         event_dispatcher_manager_.post_modifier_flags(key_code, flags);
       }
 
+      modifier_flag_manager_.reset_standalone();
       return true;
     }
 
@@ -532,8 +606,11 @@ private:
 
   simple_modifications simple_modifications_;
   simple_modifications fn_function_keys_;
+  simple_modifications standalone_modifiers_;
 
   manipulated_keys manipulated_keys_;
   manipulated_keys manipulated_fn_keys_;
+
+  bool mouseDown;
 };
 }

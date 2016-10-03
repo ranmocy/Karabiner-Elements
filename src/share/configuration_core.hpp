@@ -84,6 +84,12 @@ public:
     return get_key_code_pair_from_json_object(profile["fn_function_keys"]);
   }
 
+  // std::vector<from,to>
+  std::vector<std::pair<krbn::key_code, krbn::key_code>> get_current_profile_standalone_modifiers(void) const {
+    auto profile = get_current_profile();
+    return get_key_code_pair_from_json_object(profile["standalone_modifiers"]);
+  }
+
   std::string get_current_profile_json(void) const {
     return get_current_profile().dump();
   }
